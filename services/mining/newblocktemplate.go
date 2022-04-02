@@ -489,7 +489,7 @@ mempool:
 		// Size declared below
 	}
 	if block.Header.Version <= 0 {
-		return nil, miningRuleError(ErrBlockVersion, "version can not bigger than 1024")
+		return nil, miningRuleError(ErrBlockVersion, "version value set error")
 	}
 	for _, pb := range parents {
 		if err := block.AddParent(pb); err != nil {
