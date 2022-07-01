@@ -392,6 +392,7 @@ func (node *Node) recordPeers(ctx context.Context) {
 			if _, ok := r.Peers[remotePe.GetID().String()]; !ok {
 				r.AllCount++
 			}
+			log.Info("peerInfo", "version", remotePe.GetVersion(), "network", remotePe.GetNetwork())
 			r.Peers[remotePe.GetID().String()] = remotePe.Address().String() + ":" + strconv.FormatBool(!remotePe.ConnectionState().IsDisconnected())
 			b, _ = json.Marshal(r)
 			ioutil.WriteFile("./peers.json", b, 0755)
