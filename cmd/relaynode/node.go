@@ -6,6 +6,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/Qitmeer/qng/common/roughtime"
 	"github.com/Qitmeer/qng/config"
@@ -32,8 +33,10 @@ import (
 	"github.com/libp2p/go-libp2p-peerstore/pstoreds"
 	"github.com/multiformats/go-multiaddr"
 	ma "github.com/multiformats/go-multiaddr"
+	"io/ioutil"
 	"path"
 	"reflect"
+	"strconv"
 	"sync"
 )
 
@@ -47,7 +50,8 @@ type Node struct {
 
 	peerStatus *peers.Status
 
-	hslock sync.RWMutex
+	hslock  sync.RWMutex
+	newPeer chan *peers.Peer
 }
 
 func (node *Node) init(cfg *Config) error {
@@ -69,7 +73,8 @@ func (node *Node) init(cfg *Config) error {
 
 	//
 	node.peerStatus = peers.NewStatus(nil)
-
+	node.newPeer = make(chan *peers.Peer, 1)
+	go node.recordPeers(context.Background())
 	if err := node.RegisterRpcService(); err != nil {
 		return err
 	}
@@ -184,10 +189,10 @@ func (node *Node) startP2P() error {
 	var kademliaDHT *dht.IpfsDHT
 	newDHT := func(h host.Host) (routing.PeerRouting, error) {
 		var err error
-		kademliaDHT, err = dht.New(node.Context(), h,dht.V1ProtocolOverride(p2p.ProtocolDHT),dht.Mode(dht.ModeServer))
+		kademliaDHT, err = dht.New(node.Context(), h, dht.V1ProtocolOverride(p2p.ProtocolDHT), dht.Mode(dht.ModeServer))
 		return kademliaDHT, err
 	}
-	opts = append(opts,libp2p.Routing(newDHT))
+	opts = append(opts, libp2p.Routing(newDHT))
 
 	node.host, err = libp2p.New(opts...)
 	if err != nil {
@@ -359,8 +364,40 @@ func (node *Node) processConnected(pid peer.ID, conn network.Conn) {
 
 	log.Info(fmt.Sprintf("%s direction:%s multiAddr:%s",
 		remotePe.GetID(), remotePe.Direction(), multiAddr))
+	go func() {
+		node.newPeer <- remotePe
+	}()
 }
-
+func (node *Node) recordPeers(ctx context.Context) {
+	type peersFile struct {
+		AllCount int64
+		Peers    map[string]string `json:"peers"`
+	}
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case remotePe := <-node.newPeer:
+			b, err := ioutil.ReadFile("./peers.json")
+			if err != nil {
+				log.Error("file not exist")
+				return
+			}
+			var r peersFile
+			err = json.Unmarshal(b, &r)
+			if err != nil {
+				log.Error("file content error")
+				return
+			}
+			if _, ok := r.Peers[remotePe.GetID().String()]; !ok {
+				r.AllCount++
+			}
+			r.Peers[remotePe.GetID().String()] = remotePe.Address().String() + ":" + strconv.FormatBool(!remotePe.ConnectionState().IsDisconnected())
+			b, _ = json.Marshal(r)
+			ioutil.WriteFile("./peers.json", b, 0755)
+		}
+	}
+}
 func (node *Node) processDisconnected(pid peer.ID, conn network.Conn) {
 	node.hslock.Lock()
 	defer node.hslock.Unlock()
@@ -384,6 +421,9 @@ func (node *Node) processDisconnected(pid peer.ID, conn network.Conn) {
 	if priorState == peers.PeerConnected {
 		log.Info(fmt.Sprintf("%s Peer Disconnected", peerInfoStr))
 	}
+	go func() {
+		node.newPeer <- pe
+	}()
 }
 
 func (node *Node) getChainState() *pb.ChainState {
