@@ -9,6 +9,7 @@
 package blockchain
 
 import (
+	"github.com/Qitmeer/qng/consensus/forks"
 	"github.com/Qitmeer/qng/meerdag"
 	"sync"
 
@@ -46,7 +47,7 @@ func NewSubsidyCache(blocks int64, params *params.Params) *SubsidyCache {
 		}
 
 		for i := iteration - 4; i <= iteration; i++ {
-			sc.CalcBlockSubsidy(meerdag.NewBlueInfo(uint(iteration)*uint(params.SubsidyReductionInterval), 0, 0))
+			sc.CalcBlockSubsidy(meerdag.NewBlueInfo(uint(iteration)*uint(params.SubsidyReductionInterval), 0, 0, blocks))
 		}
 	}
 
@@ -65,10 +66,41 @@ func NewSubsidyCache(blocks int64, params *params.Params) *SubsidyCache {
 //
 // Safe for concurrent access.
 func (s *SubsidyCache) CalcBlockSubsidy(bi *meerdag.BlueInfo) int64 {
+	if forks.IsMeerEVMForkHeight(bi.GetHeight()) {
+		return s.CalcBlockSubsidyByMeerEVMFork(bi)
+	}
 	if s.params.TargetTotalSubsidy > 0 {
 		return s.CalcTotalControlBlockSubsidy(bi)
 	}
+	if bi.GetHeight() < 0 {
+		return 0
+	}
 	iteration := uint64(int64(bi.GetNum()) / s.params.SubsidyReductionInterval)
+	return s.estimateSupply(iteration, s.params.MulSubsidy, s.params.DivSubsidy)
+}
+
+func (s *SubsidyCache) CalcTotalControlBlockSubsidy(bi *meerdag.BlueInfo) int64 {
+	if bi.GetNum() <= 1 {
+		return s.params.BaseSubsidy
+	}
+	blockSubsidy := int64(float64(s.params.BaseSubsidy) / float64(s.params.TargetTimePerBlock) * float64(bi.GetRate()))
+	if bi.GetWeight() >= s.params.TargetTotalSubsidy {
+		return 0
+	}
+	return blockSubsidy
+}
+
+func (s *SubsidyCache) GetMode(height int64) string {
+	if forks.IsMeerEVMForkHeight(height) {
+		return "meerevmfork"
+	}
+	if s.params.TargetTotalSubsidy > 0 {
+		return "dynamic"
+	}
+	return "static"
+}
+
+func (s *SubsidyCache) estimateSupply(iteration uint64, mul int64, div int64) int64 {
 	if iteration == 0 {
 		return s.params.BaseSubsidy
 	}
@@ -88,8 +120,8 @@ func (s *SubsidyCache) CalcBlockSubsidy(bi *meerdag.BlueInfo) int64 {
 	cachedValue, existsInCache = s.subsidyCache[iteration-1]
 	s.subsidyCacheLock.RUnlock()
 	if existsInCache {
-		cachedValue *= s.params.MulSubsidy
-		cachedValue /= s.params.DivSubsidy
+		cachedValue *= mul
+		cachedValue /= div
 
 		s.subsidyCacheLock.Lock()
 		s.subsidyCache[iteration] = cachedValue
@@ -114,22 +146,18 @@ func (s *SubsidyCache) CalcBlockSubsidy(bi *meerdag.BlueInfo) int64 {
 	return subsidy
 }
 
-func (s *SubsidyCache) CalcTotalControlBlockSubsidy(bi *meerdag.BlueInfo) int64 {
-	if bi.GetNum() <= 1 {
-		return s.params.BaseSubsidy
-	}
-	blockSubsidy := int64(float64(s.params.BaseSubsidy) / float64(s.params.TargetTimePerBlock) * float64(bi.GetRate()))
-	if bi.GetWeight() >= s.params.TargetTotalSubsidy {
+func (s *SubsidyCache) CalcBlockSubsidyByMeerEVMFork(bi *meerdag.BlueInfo) int64 {
+	targetTotalSubsidy := int64(forks.MeerEVMForkTotalSubsidy)
+	if bi.GetWeight() >= targetTotalSubsidy {
 		return 0
 	}
-	return blockSubsidy
-}
-
-func (s *SubsidyCache) GetMode() string {
-	if s.params.TargetTotalSubsidy > 0 {
-		return "dynamic"
+	realHeight := bi.GetHeight() - forks.MeerEVMForkMainHeight
+	iteration := uint64(realHeight) / forks.SubsidyReductionInterval
+	blockSubsidy := s.estimateSupply(iteration, forks.MulSubsidy, forks.DivSubsidy)
+	if bi.GetWeight()+blockSubsidy > targetTotalSubsidy {
+		blockSubsidy = targetTotalSubsidy - bi.GetWeight()
 	}
-	return "static"
+	return blockSubsidy
 }
 
 // CalcBlockWorkSubsidy calculates the proof of work subsidy for a block as a

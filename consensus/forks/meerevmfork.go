@@ -11,13 +11,28 @@ const (
 	// What main height can transfer the locked utxo in genesis to MeerVM
 	//927667
 	MeerEVMForkMainHeight = 927655
+
+	// What main height can transfer the locked utxo in genesis to MeerVM
+	MeerEVMValidMainHeight = 959000
+
+	// 21024000000000000 (Total)-5051813000000000 (locked genesis)-1215912000000000 (meerevm genesis) = 14756275000000000
+	MeerEVMForkTotalSubsidy = 14756275000000000
+
+	// subsidy reduction interval  48 days
+	SubsidyReductionInterval = 138240
+
+	// Subsidy reduction multiplier.
+	MulSubsidy = 100
+	// Subsidy reduction divisor.
+	DivSubsidy = 101
 )
 
-func IsMeerEVMFork(tx *types.Transaction, ip *types.TxInput, mainHeight int64) bool {
+func IsMeerEVMValid(tx *types.Transaction, ip *types.TxInput, mainHeight int64) bool {
 	if params.ActiveNetParams.Net != protocol.MainNet {
 		return false
 	}
-	if mainHeight < MeerEVMForkMainHeight {
+	if mainHeight < MeerEVMForkMainHeight ||
+		mainHeight < MeerEVMValidMainHeight {
 		return false
 	}
 	if !types.IsCrossChainExportTx(tx) {
@@ -48,4 +63,18 @@ func IsMaxLockUTXOInGenesis(op *types.TxOutPoint) bool {
 		}
 	}
 	return false
+}
+
+func IsMeerEVMForkHeight(mainHeight int64) bool {
+	if params.ActiveNetParams.Net != protocol.MainNet {
+		return false
+	}
+	return mainHeight >= MeerEVMForkMainHeight
+}
+
+func IsMeerEVMValidHeight(mainHeight int64) bool {
+	if params.ActiveNetParams.Net != protocol.MainNet {
+		return false
+	}
+	return mainHeight >= MeerEVMValidMainHeight
 }
