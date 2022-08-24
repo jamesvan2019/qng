@@ -9,7 +9,8 @@ import (
 
 const (
 	// What main height can transfer the locked utxo in genesis to MeerVM
-	MeerEVMForkMainHeight = 959000
+	//927667
+	MeerEVMForkMainHeight = 927655
 )
 
 func IsMeerEVMFork(tx *types.Transaction, ip *types.TxInput, mainHeight int64) bool {

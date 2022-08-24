@@ -9,8 +9,8 @@ package blockchain
 import (
 	"fmt"
 	"github.com/Qitmeer/qng/common/hash"
-	"github.com/Qitmeer/qng/meerdag"
 	"github.com/Qitmeer/qng/core/types/pow"
+	"github.com/Qitmeer/qng/meerdag"
 	"math/big"
 	"time"
 )
@@ -103,6 +103,10 @@ func (b *BlockChain) calcNextRequiredDifficulty(block meerdag.IBlock, newBlockTi
 	originCurrentBlock := block
 	// Genesis block.
 	if block == nil {
+		return pow.BigToCompact(baseTarget), nil
+	}
+
+	if block.GetHeight() >= 927650 {
 		return pow.BigToCompact(baseTarget), nil
 	}
 

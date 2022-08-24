@@ -475,6 +475,7 @@ func (m *Miner) submitBlockHeader(header *types.BlockHeader, extraNonce uint64) 
 }
 
 func (m *Miner) CanMining() error {
+	return nil
 	currentOrder := m.blockManager.GetChain().BestSnapshot().GraphState.GetTotal() - 1
 	if currentOrder != 0 && !m.blockManager.IsCurrent() {
 		log.Trace("Client in initial download, qitmeer is downloading blocks...")
