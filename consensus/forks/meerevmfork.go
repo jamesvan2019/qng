@@ -10,11 +10,12 @@ import (
 const (
 	// What main height can transfer the locked utxo in genesis to MeerVM
 	//927667
-	MeerEVMForkMainHeight = 939390
+
+	MeerEVMForkMainHeight = 927660
 
 	// What main height can transfer the locked utxo in genesis to MeerEVM
 	// Must after MeerEVMForkMainHeight
-	MeerEVMUTXOUnlockMainHeight = 939390
+	MeerEVMUTXOUnlockMainHeight = 927660
 
 	// 21024000000000000 (Total)-5051813000000000 (locked genesis)-1215912000000000 (meerevm genesis) = 14756275000000000
 	MeerEVMForkTotalSubsidy = 14756275000000000
