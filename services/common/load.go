@@ -569,6 +569,22 @@ var (
 			Destination: &cfg.Consistency,
 			Value:       true,
 		},
+		&cli.BoolFlag{
+			Name:        "metrics",
+			Usage:       "Enable metrics collection and reporting",
+			Destination: &cfg.Metrics,
+		},
+		&cli.BoolFlag{
+			Name:        "metrics.expensive",
+			Usage:       "Enable expensive metrics collection and reporting",
+			Destination: &cfg.MetricsExpensive,
+		},
+		&cli.Uint64Flag{
+			Name:        "minfreedisk",
+			Usage:       "Minimum free disk space in MB, once reached triggers auto shut down (default = 512M, 0 = disabled)",
+			Value:       512,
+			Destination: &cfg.Minfreedisk,
+		},
 	}
 )
 

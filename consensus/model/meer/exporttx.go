@@ -1,7 +1,6 @@
-package vm
+package meer
 
 import (
-	"encoding/hex"
 	"fmt"
 	"github.com/Qitmeer/qng/core/address"
 	"github.com/Qitmeer/qng/core/types"
@@ -11,20 +10,14 @@ import (
 
 type ExportTx struct {
 	*Tx
-	*types.Transaction
-}
-
-func (etx *ExportTx) CheckSanity() error {
-	if !types.IsCrossChainExportTx(etx.Transaction) {
-		return fmt.Errorf("Not import tx data:%s", etx.Transaction.TxHash())
-	}
-
-	return nil
 }
 
 func NewExportTx(tx *types.Transaction) (*ExportTx, error) {
+	if !types.IsCrossChainExportTx(tx) {
+		return nil, fmt.Errorf("Not import tx data:%s", tx.TxHash())
+	}
 
-	etx := &ExportTx{Transaction: tx, Tx: &Tx{}}
+	etx := &ExportTx{Tx: &Tx{}}
 	etx.Type = types.TxTypeCrossChainExport
 
 	if len(tx.TxIn) < 1 || len(tx.TxOut) < 1 {
@@ -44,7 +37,7 @@ func NewExportTx(tx *types.Transaction) (*ExportTx, error) {
 		if !ok {
 			return nil, fmt.Errorf(fmt.Sprintf("Not SecpPubKeyAddress:%s in tx(%s)", pksAddrs[0].String(), tx.TxHash()))
 		}
-		etx.To = hex.EncodeToString(secpPksAddr.PubKey().SerializeUncompressed())
+		etx.To = secpPksAddr.PubKey().SerializeUncompressed()
 		etx.Value = uint64(tx.TxOut[0].Amount.Value)
 	} else {
 		return nil, fmt.Errorf("tx format error :TxTypeCrossChainExport in tx(%s)", tx.TxHash())

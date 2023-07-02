@@ -13,7 +13,6 @@ import (
 	"github.com/Qitmeer/qng/services/common"
 	"github.com/Qitmeer/qng/services/index"
 	"github.com/Qitmeer/qng/services/mempool"
-	vmconsensus "github.com/Qitmeer/qng/vm/consensus"
 	"time"
 )
 
@@ -25,7 +24,7 @@ type TxManager struct {
 	txMemPool *mempool.TxPool
 
 	// notify
-	ntmgr vmconsensus.Notify
+	ntmgr model.Notify
 
 	// db
 	db database.DB
@@ -149,7 +148,7 @@ func (tm *TxManager) handleNotifyMsg(notification *blockchain.Notification) {
 			break
 		}
 
-		if len(blockSlice) != 2 {
+		if len(blockSlice) != 3 {
 			log.Warn("Chain connected notification is wrong size slice.")
 			break
 		}
@@ -170,7 +169,7 @@ func (tm *TxManager) handleNotifyMsg(notification *blockchain.Notification) {
 		tm.ntmgr.AnnounceNewTransactions(txds, nil)
 		// Register block with the fee estimator, if it exists.
 		if tm.FeeEstimator() != nil && blockSlice[1].(bool) {
-			err := tm.FeeEstimator().RegisterBlock(block)
+			err := tm.FeeEstimator().RegisterBlock(block, blockSlice[2].(meerdag.IBlock).GetHeight())
 
 			// If an error is somehow generated then the fee estimator
 			// has entered an invalid state. Since it doesn't know how
@@ -180,14 +179,14 @@ func (tm *TxManager) handleNotifyMsg(notification *blockchain.Notification) {
 			}
 		}
 	case blockchain.BlockDisconnected:
-		block, ok := notification.Data.(*types.SerializedBlock)
+		blockSlice, ok := notification.Data.([]interface{})
 		if !ok {
 			log.Warn("Chain disconnected notification is not a block slice.")
 			break
 		}
 		// Rollback previous block recorded by the fee estimator.
 		if tm.FeeEstimator() != nil {
-			tm.FeeEstimator().Rollback(block.Hash())
+			tm.FeeEstimator().Rollback(blockSlice[0].(*types.SerializedBlock).Hash())
 		}
 	}
 }
@@ -196,7 +195,7 @@ func (tm *TxManager) GetChain() *blockchain.BlockChain {
 	return tm.consensus.BlockChain().(*blockchain.BlockChain)
 }
 
-func NewTxManager(consensus model.Consensus, ntmgr vmconsensus.Notify) (*TxManager, error) {
+func NewTxManager(consensus model.Consensus, ntmgr model.Notify) (*TxManager, error) {
 	cfg := consensus.Config()
 	sigCache := consensus.SigCache()
 	bc := consensus.BlockChain().(*blockchain.BlockChain)

@@ -8,7 +8,7 @@ import (
 	"github.com/Qitmeer/qng/common/hash"
 	"github.com/Qitmeer/qng/common/marshal"
 	"github.com/Qitmeer/qng/common/math"
-	qconsensus "github.com/Qitmeer/qng/consensus/vm"
+	qconsensus "github.com/Qitmeer/qng/consensus/model/meer"
 	"github.com/Qitmeer/qng/core/address"
 	"github.com/Qitmeer/qng/core/blockchain/token"
 	"github.com/Qitmeer/qng/core/dbnamespace"
@@ -19,6 +19,7 @@ import (
 	"github.com/Qitmeer/qng/crypto/ecc"
 	"github.com/Qitmeer/qng/database"
 	"github.com/Qitmeer/qng/engine/txscript"
+	"github.com/Qitmeer/qng/meerevm/meer"
 	"github.com/Qitmeer/qng/params"
 	"github.com/Qitmeer/qng/rpc"
 	"github.com/Qitmeer/qng/rpc/api"
@@ -670,7 +671,7 @@ func (api *PublicTxAPI) GetRawTransactions(addre string, vinext *bool, count *ui
 
 		if mtx.Tx.IsCoinBase() {
 			amountMap := api.txManager.GetChain().GetFees(rtx.blkHash)
-			result.Vout = marshal.MarshJsonCoinbaseVout(mtx.Tx, filterAddrMap, params, amountMap)
+			result.Vout = marshal.MarshJsonCoinbaseVout(mtx, filterAddrMap, params, amountMap)
 		} else {
 			result.Vout = marshal.MarshJsonVout(mtx.Tx, filterAddrMap, params)
 		}
@@ -985,20 +986,19 @@ func (api *PublicTxAPI) GetMeerEVMTxHashByID(txid hash.Hash) (interface{}, error
 }
 
 func (api *PublicTxAPI) GetTxIDByMeerEVMTxHash(etxh hash.Hash) (interface{}, error) {
-	vmi := api.txManager.GetChain().VMService()
-	etxs, txhs, err := vmi.GetTxsFromMempool()
+	etxs, txhs, err := api.txManager.GetChain().MeerChain().(*meer.MeerChain).MeerPool().GetTxs()
 	if err != nil {
 		return nil, err
 	}
 	if len(txhs) > 0 {
 		for i := 0; i < len(txhs); i++ {
 			if txhs[i].IsEqual(&etxh) {
-				return etxs[i].TxHash().String(), nil
+				return etxs[i].Hash().String(), nil
 			}
 		}
 	}
 
-	bid := vmi.GetBlockIDByTxHash(&etxh)
+	bid := api.txManager.GetChain().MeerChain().GetBlockIDByTxHash(&etxh)
 	if bid == 0 {
 		return nil, fmt.Errorf("No meerevm tx:%s", etxh.String())
 	}

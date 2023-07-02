@@ -2,14 +2,14 @@
  * Copyright (c) 2017-2020 The qitmeer developers
  */
 
-package vm
+package meer
 
 import "github.com/Qitmeer/qng/core/types"
 
 type Tx struct {
 	Type  types.TxType
-	From  string
-	To    string
+	From  []byte
+	To    []byte
 	Value uint64
 	Data  []byte
 }
@@ -18,10 +18,10 @@ func (tx *Tx) GetTxType() types.TxType {
 	return tx.Type
 }
 
-func (tx *Tx) GetFrom() string {
+func (tx *Tx) GetFrom() []byte {
 	return tx.From
 }
-func (tx *Tx) GetTo() string {
+func (tx *Tx) GetTo() []byte {
 	return tx.To
 }
 func (tx *Tx) GetValue() uint64 {
