@@ -5,5 +5,6 @@ import (
 )
 
 var (
-	newDailyTxCount = metrics.NewRegisteredGauge("mempool/addtx", nil)
+	newDailyTxCount    = metrics.NewRegisteredGauge("mempool/addtx", nil)
+	newDailyAllTxCount = metrics.NewRegisteredGauge("mempool/alltx", nil)
 )
